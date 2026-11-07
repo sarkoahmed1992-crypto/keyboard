@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ku" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+        }
+        /* Top Toolbar */
+        .toolbar {
+            display: flex;
+            gap: 5px;
+            padding: 5px 6px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            overflow-x: auto;
+            align-items: center;
+        }
+        .tool-btn {
+            background: #334155;
+            color: #f8fafc;
+            border: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        .tool-btn:active { background: #38bdf8; color: #0f172a; }
+        .tool-btn.calc-btn { background: #d97706; }
+        .tool-btn.trans-btn { background: #059669; }
+        .tool-btn.accent { background: #0284c7; }
+
+        /* Panels */
+        .overlay-panel {
+            display: none;
+            background: #1e293b;
+            padding: 6px;
+            height: 260px;
+            overflow-y: auto;
+        }
+        .overlay-panel.active {
+            display: block;
+        }
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+        }
+        .calc-display {
+            grid-column: span 4;
+            background: #0f172a;
+            color: #38bdf8;
+            padding: 6px 10px;
+            font-size: 18px;
+            text-align: left;
+            border-radius: 6px;
+            direction: ltr;
+            min-height: 36px;
+        }
+        .c-btn {
+            background: #334155;
+            color: white;
+            border: none;
+            padding: 8px;
+            font-size: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .c-btn.op { background: #0284c7; }
+        .c-btn.eq { background: #059669; }
+        .c-btn.insert { grid-column: span 2; background: #d97706; }
+
+        .trans-box {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 6px;
+        }
+        .trans-row {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+        .trans-select {
+            background: #0f172a;
+            color: white;
+            border: 1px solid #475569;
+            padding: 8px;
+            border-radius: 6px;
+            flex: 1;
+            font-size: 13px;
+        }
+
+        /* Keyboard */
+        .keyboard {
+            background: #0f172a;
+            padding: 4px 3px 6px 3px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+            justify-content: space-between;
+        }
+        .kb-row {
+            display: flex;
+            justify-content: center;
+            gap: 3px;
+            direction: ltr;
+            flex: 1;
+        }
+        .key {
+            background: #334155;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            flex: 1;
+            font-size: 16px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 0 #020617;
+        }
+        .key:active {
+            background: #38bdf8;
+            color: #0f172a;
+        }
+        .key.num-key {
+            background: #1e293b;
+            color: #38bdf8;
+            font-size: 14px;
+            border: 1px solid #334155;
+        }
+        .key.wide {
+            flex: 1.5;
+            background: #475569;
+            font-size: 14px;
+        }
+        .key.space {
+            flex: 4.5;
+            font-size: 13px;
+        }
+        .key.lang-btn {
+            background: #0284c7;
+            font-weight: bold;
+        }
+        .status-msg {
+            font-size: 11px;
+            color: #38bdf8;
+            margin-right: auto;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top Toolbar -->
+<div class="toolbar">
+    <button class="tool-btn calc-btn" onclick="togglePanel('calcPanel')">🧮 حاسیبە</button>
+    <button class="tool-btn trans-btn" onclick="togglePanel('transPanel')">🌐 وەرگێڕان</button>
+    <button class="tool-btn accent" onclick="doSelectAll()">☑️ سلێکت ئۆڵ</button>
+    <button class="tool-btn" onclick="doCopy()">📋 کۆپی</button>
+    <button class="tool-btn" onclick="doCut()">✂️ بڕین</button>
+    <button class="tool-btn" onclick="doPaste()">📥 پەیست</button>
+    <span class="status-msg" id="statusMsg">کوردی</span>
+</div>
+
+<!-- Calculator Panel -->
+<div class="overlay-panel" id="calcPanel">
+    <div class="calc-grid">
+        <div class="calc-display" id="calcDisplay">0</div>
+        <button class="c-btn" onclick="calcInput('7')">7</button>
+        <button class="c-btn" onclick="calcInput('8')">8</button>
+        <button class="c-btn" onclick="calcInput('9')">9</button>
+        <button class="c-btn op" onclick="calcInput('/')">÷</button>
+        <button class="c-btn" onclick="calcInput('4')">4</button>
+        <button class="c-btn" onclick="calcInput('5')">5</button>
+        <button class="c-btn" onclick="calcInput('6')">6</button>
+        <button class="c-btn op" onclick="calcInput('*')">×</button>
+        <button class="c-btn" onclick="calcInput('1')">1</button>
+        <button class="c-btn" onclick="calcInput('2')">2</button>
+        <button class="c-btn" onclick="calcInput('3')">3</button>
+        <button class="c-btn op" onclick="calcInput('-')">-</button>
+        <button class="c-btn" onclick="calcInput('0')">0</button>
+        <button class="c-btn" onclick="calcInput('.')">.</button>
+        <button class="c-btn eq" onclick="calcEval()">=</button>
+        <button class="c-btn op" onclick="calcInput('+')">+</button>
+        <button class="c-btn" style="background:#ef4444;" onclick="calcClear()">C</button>
+        <button class="c-btn" onclick="togglePanel('calcPanel')">گەڕانەوە</button>
+        <button class="c-btn insert" onclick="insertCalcResult()">ناردنی ئەنجام بۆ ناو نووسین</button>
+    </div>
+</div>
+
+<!-- Translator Panel -->
+<div class="overlay-panel" id="transPanel">
+    <div class="trans-box">
+        <p style="font-size:12px; color:#cbd5e1;">وەرگێڕانی ڕاستەوخۆی ئەو دەقەی لەناو خانەی بەرنامەکەدا نووسیوتە:</p>
+        <div class="trans-row">
+            <select id="sourceLang" class="trans-select">
+                <option value="ckb">کوردی</option>
+                <option value="ar">عەرەبی</option>
+                <option value="en">ئینگلیزی</option>
+            </select>
+            <span>⬅️</span>
+            <select id="targetLang" class="trans-select">
+                <option value="en">ئینگلیزی</option>
+                <option value="ar">عەرەبی</option>
+                <option value="ckb">کوردی</option>
+            </select>
+        </div>
+        <div class="trans-row">
+            <button class="c-btn eq" style="flex:2;" onclick="translateCurrentField()">🌐 وەرگێڕانی دەقەکە ئێستا</button>
+            <button class="c-btn" style="flex:1;" onclick="togglePanel('transPanel')">داخستن</button>
+        </div>
+    </div>
+</div>
+
+<!-- Keyboard Keys -->
+<div class="keyboard" id="keyboardContainer"></div>
+
+<script>
+    let currentLang = 'ku';
+    let isShift = false;
+
+    const layouts = {
+        ku: {
+            name: 'کوردی',
+            numbers: ['1','2','3','4','5','6','7','8','9','0'],
+            numbersShift: ['١','٢','٣','٤','٥','٦','٧','٨','٩','٠'],
+            rows: [
+                ['چ','پ','ق','و','ە','ر','ت','ی','ئ','ح','ج'],
+                ['ش','س','ی','ب','ل','ا','ت','ن','م','ک','گ'],
+                ['ظ','ط','ژ','ز','ر','ذ','د','پ','و','ۆ','ێ']
+            ],
+            rowsShift: [
+                ['؟','!','÷','×','وو','ڕ','ڵ','ێ','ۆ','ڤ','غ'],
+                ['ش','ص','ض','ع','غ','ف','ق','ک','ل','م','ن'],
+                ['؛','،','.','-','+','(',')','/','@',':','"']
+            ]
+        },
+        ar: {
+            name: 'العربية',
+            numbers: ['1','2','3','4','5','6','7','8','9','0'],
+            numbersShift: ['١','٢','٣','٤','٥','٦','٧','٨','٩','٠'],
+            rows: [
+                ['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج','د'],
+                ['ش','س','ي','ب','ل','ا','ت','ن','م','ك','ط'],
+                ['ئ','ء','ؤ','ر','لا','ى','ة','و','ز','ظ']
+            ],
+            rowsShift: [
+                ['َ','ً','ُ','ٌ','لإ','إ','÷','×','؛','<','>'],
+                ['ِ','ٍ',']','[','لأ','أ','ـ','،','/',' :','"'],
+                ['~','ْ','}','{','لآ','آ',',','.','؟']
+            ]
+        },
+        en: {
+            name: 'English',
+            numbers: ['1','2','3','4','5','6','7','8','9','0'],
+            numbersShift: ['!','@','#','$','%','^','&','*','(',')'],
+            rows: [
+                ['q','w','e','r','t','y','u','i','o','p'],
+                ['a','s','d','f','g','h','j','k','l'],
+                ['z','x','c','v','b','n','m']
+            ],
+            rowsShift: [
+                ['Q','W','E','R','T','Y','U','I','O','P'],
+                ['A','S','D','F','G','H','J','K','L'],
+                ['Z','X','C','V','B','N','M']
+            ]
+        }
+    };
+
+    function setStatus(msg) {
+        document.getElementById('statusMsg').innerText = msg;
+    }
+
+    function sendText(char) {
+        if (window.AndroidIME) {
+            window.AndroidIME.commitText(char);
+        }
+    }
+
+    function doBackspace() {
+        if (window.AndroidIME) {
+            window.AndroidIME.deleteBackward();
+        }
+    }
+
+    function doEnter() {
+        if (window.AndroidIME) {
+            window.AndroidIME.sendEnter();
+        }
+    }
+
+    function doSelectAll() {
+        if (window.AndroidIME) {
+            window.AndroidIME.selectAll();
+            setStatus('هەمووی دیاری کرا');
+        }
+    }
+
+    function doCopy() {
+        if (window.AndroidIME) {
+            window.AndroidIME.copy();
+            setStatus('کۆپی کرا');
+        }
+    }
+
+    function doCut() {
+        if (window.AndroidIME) {
+            window.AndroidIME.cut();
+            setStatus('بڕدرا');
+        }
+    }
+
+    function doPaste() {
+        if (window.AndroidIME) {
+            window.AndroidIME.paste();
+            setStatus('پەیست کرا');
+        }
+    }
+
+    function renderKeyboard() {
+        const container = document.getElementById('keyboardContainer');
+        container.innerHTML = '';
+        const layout = layouts[currentLang];
+        setStatus(layout.name);
+
+        // Number Row
+        const numRow = document.createElement('div');
+        numRow.className = 'kb-row';
+        const nums = isShift ? layout.numbersShift : layout.numbers;
+        nums.forEach(n => {
+            const btn = document.createElement('button');
+            btn.className = 'key num-key';
+            btn.innerText = n;
+            btn.onclick = () => sendText(n);
+            numRow.appendChild(btn);
+        });
+        container.appendChild(numRow);
+
+        // Letters
+        const activeRows = isShift ? layout.rowsShift : layout.rows;
+        activeRows.forEach((r, idx) => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'kb-row';
+
+            if (idx === 2) {
+                const shiftBtn = document.createElement('button');
+                shiftBtn.className = 'key wide';
+                shiftBtn.style.background = isShift ? '#0284c7' : '#475569';
+                shiftBtn.innerText = '⇧';
+                shiftBtn.onclick = () => { isShift = !isShift; renderKeyboard(); };
+                rowDiv.appendChild(shiftBtn);
+            }
+
+            r.forEach(char => {
+                const btn = document.createElement('button');
+                btn.className = 'key';
+                btn.innerText = char;
+                btn.onclick = () => sendText(char);
+                rowDiv.appendChild(btn);
+            });
+
+            if (idx === 2) {
+                const backBtn = document.createElement('button');
+                backBtn.className = 'key wide';
+                backBtn.innerText = '⌫';
+                backBtn.onclick = doBackspace;
+                rowDiv.appendChild(backBtn);
+            }
+
+            container.appendChild(rowDiv);
+        });
+
+        // Bottom Row
+        const bottomRow = document.createElement('div');
+        bottomRow.className = 'kb-row';
+
+        const langBtn = document.createElement('button');
+        langBtn.className = 'key wide lang-btn';
+        langBtn.innerText = '🌐 زمان';
+        langBtn.onclick = () => {
+            const order = ['ku', 'ar', 'en'];
+            currentLang = order[(order.indexOf(currentLang) + 1) % order.length];
+            isShift = false;
+            renderKeyboard();
+        };
+        bottomRow.appendChild(langBtn);
+
+        const commaBtn = document.createElement('button');
+        commaBtn.className = 'key';
+        commaBtn.innerText = currentLang === 'en' ? ',' : '،';
+        commaBtn.onclick = () => sendText(commaBtn.innerText);
+        bottomRow.appendChild(commaBtn);
+
+        const spaceBtn = document.createElement('button');
+        spaceBtn.className = 'key space';
+        spaceBtn.innerText = layout.name;
+        spaceBtn.onclick = () => sendText(' ');
+        bottomRow.appendChild(spaceBtn);
+
+        const dotBtn = document.createElement('button');
+        dotBtn.className = 'key';
+        dotBtn.innerText = '.';
+        dotBtn.onclick = () => sendText('.');
+        bottomRow.appendChild(dotBtn);
+
+        const enterBtn = document.createElement('button');
+        enterBtn.className = 'key wide';
+        enterBtn.style.background = '#059669';
+        enterBtn.innerText = '↵';
+        enterBtn.onclick = doEnter;
+        bottomRow.appendChild(enterBtn);
+
+        container.appendChild(bottomRow);
+    }
+
+    function togglePanel(id) {
+        const p = document.getElementById(id);
+        const kb = document.getElementById('keyboardContainer');
+        const isActive = p.classList.contains('active');
+        document.querySelectorAll('.overlay-panel').forEach(el => el.classList.remove('active'));
+        if (!isActive) {
+            p.classList.add('active');
+            kb.style.display = 'none';
+        } else {
+            kb.style.display = 'flex';
+        }
+    }
+
+    // Calculator
+    let calcExp = '';
+    function calcInput(val) {
+        calcExp += val;
+        document.getElementById('calcDisplay').innerText = calcExp;
+    }
+    function calcClear() {
+        calcExp = '';
+        document.getElementById('calcDisplay').innerText = '0';
+    }
+    function calcEval() {
+        try {
+            calcExp = String(eval(calcExp));
+            document.getElementById('calcDisplay').innerText = calcExp;
+        } catch {
+            document.getElementById('calcDisplay').innerText = 'هەڵە';
+            calcExp = '';
+        }
+    }
+    function insertCalcResult() {
+        const res = document.getElementById('calcDisplay').innerText;
+        if (res && res !== 'هەڵە') {
+            sendText(res);
+            togglePanel('calcPanel');
+        }
+    }
+
+    // Direct System Field Translation
+    async function translateCurrentField() {
+        if (!window.AndroidIME) return;
+        const text = window.AndroidIME.getAllText().trim();
+        if (!text) {
+            setStatus('هیچ دەقێک نەنووسراوە!');
+            return;
+        }
+        const sl = document.getElementById('sourceLang').value;
+        const tl = document.getElementById('targetLang').value;
+        setStatus('وەرگێڕان...');
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(text)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const translated = data[0].map(item => item[0]).join('');
+            window.AndroidIME.replaceAllText(translated);
+            setStatus('وەرگێڕدرا!');
+            togglePanel('transPanel');
+        } catch (e) {
+            setStatus('هێڵی ئینتەرنێت نییە');
+        }
+    }
+
+    renderKeyboard();
+</script>
+</body>
+</html>
